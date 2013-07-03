@@ -5,9 +5,9 @@
 
 create table property (
   id                        bigint auto_increment not null,
-  key                       varchar(255),
+  akey                      varchar(255),
   update_date               datetime,
-  constraint uq_property_key unique (key),
+  constraint uq_property_akey unique (akey),
   constraint pk_property primary key (id))
 ;
 

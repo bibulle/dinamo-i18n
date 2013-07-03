@@ -169,7 +169,7 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 
 	$scope.Math = window.Math;
 
-	$rootScope.order = 'key';
+	$rootScope.order = 'akey';
 	$rootScope.reverse = false;
 
 	$scope.properties = [];
@@ -195,7 +195,7 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 												for ( var newProp in newProperties) {
 													for ( var oldProp in $scope.properties) {
 														if (newProperties[newProp].id == $scope.properties[oldProp].id) {
-															$scope.properties[oldProp].key = newProperties[newProp].key;
+															$scope.properties[oldProp].akey = newProperties[newProp].akey;
 															$scope.properties[oldProp].updateDate = newProperties[newProp].updateDate;
 															$scope.properties[oldProp].values = newProperties[newProp].values;
 															cpt++;
@@ -246,7 +246,7 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 	
 	$scope.$on ('addProperty', function(event) {
 			var newProp = {};
-			newProp.key = "";
+			newProp.akey = "";
 			newProp.values = [];
 			for ( var i in $rootScope.conf.langages) {
 				newProp.values.push({});
@@ -273,7 +273,7 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 
 	$scope.doneEditing = function(property, value) {
 		// Clean
-		property.key = property.key.trim();
+		property.akey = property.akey.trim();
 
 		if (!angular.isUndefined(value)) {
 			if (angular.isUndefined(value.value) || (value.value == null)) {
@@ -283,7 +283,7 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 		}
 
 		// Surface check
-		if (property.key == "") {
+		if (property.akey == "") {
 			$scope.setMessageError("Key cannot be empty");
 			$scope.editedValue = property;
 			return;
@@ -295,9 +295,9 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 		
 		// save
 		PropertyBackend.save(property, function() {
-			$scope.setMessageSuccess("Saved (" + property.key + ")");
+			$scope.setMessageSuccess("Saved (" + property.akey + ")");
 		}, function() {
-			$scope.setMessageError("cannot saved (" + property.key + ")");
+			$scope.setMessageError("cannot saved (" + property.akey + ")");
 		});
 	};
 
@@ -326,10 +326,10 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 			var index = $scope.properties.indexOf(property);
 			$scope.properties.splice(index, 1);
 			
-			$scope.setMessageSuccess("Deleted (" + property.key + ")");
+			$scope.setMessageSuccess("Deleted (" + property.akey + ")");
 		}, function() {
 			$scope.deletedProperty = null;
-			$scope.setMessageError("Cannot delete (" + property.key + ")");
+			$scope.setMessageError("Cannot delete (" + property.akey + ")");
 		});
 	};
 

@@ -28,7 +28,7 @@ public class Property extends Model {
 
 	
 	@Column(unique=true)
-	public String key;
+	public String akey;
 	
 	public Date updateDate;
 

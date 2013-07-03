@@ -1,9 +1,9 @@
 <div id="properties">
   <div class="row list header">
 		<div class="key span span{{12 - conf.nb_langage_by_row * Math.floor(11/conf.nb_langage_by_row)}}"
-				ng-click="setOrder('key')">
+				ng-click="setOrder('akey')">
 		  <div class="span-inner">
-			  <div ng-show="(order == 'key')" class="sort">
+			  <div ng-show="(order == 'akey')" class="sort">
 				  <i ng-show="!reverse" class="icon-chevron-down"></i>
 					<i ng-show="reverse" class="icon-chevron-up"></i>
 				</div>
@@ -31,9 +31,9 @@
 				 ng-class="{editing: prop == editedValue}" ng-click="editProp(prop)">
 		  <div class="span-inner">
 		  		<i class="icon-trash trash" ng-click="deleteProp(prop, $event)"></i> 
-					<span class="view" ng-class="{strong: isNewer(prop.updateDate)}">{{prop.key}}&nbsp;</span>
+					<span class="view" ng-class="{strong: isNewer(prop.updateDate)}">{{prop.akey}}&nbsp;</span>
 					<form ng-submit="doneEditing(prop)">
-						<textarea rows=4 class="edit" ng-model="prop.key" value-blur="doneEditing(prop)" value-focus="prop == editedValue"/></textarea>
+						<textarea rows=4 class="edit" ng-model="prop.akey" value-blur="doneEditing(prop)" value-focus="prop == editedValue"/></textarea>
 					</form>
 		  </div>
 		</div>
@@ -62,7 +62,7 @@
  		<h3 id="deleteValidationLabel">Delete this property ?</h3>
 	</div>
 	<div class="modal-body">
- 		<p>{{deletedProperty.key}}</p>
+ 		<p>{{deletedProperty.akey}}</p>
 	</div>
 	<div class="modal-footer">
  		<button class="btn" data-dismiss="modal" aria-hidden="true" ng-click="deletedProperty = null">Cancel</button>

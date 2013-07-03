@@ -108,7 +108,7 @@ public class Properties extends Controller {
 
 			if ((newProperty.id != null) && (newProperty.id > 0)) {
 				Property oldProperty = Property.find.byId(newProperty.id);
-				oldProperty.key = newProperty.key;
+				oldProperty.akey = newProperty.akey;
 				oldProperty.updateDate = newProperty.updateDate;
 				for (int i = 0; i < newProperty.values.size(); i++) {
 					Value oldval = oldProperty.values.get(i);
@@ -220,10 +220,10 @@ public class Properties extends Controller {
 						String valueS = matcher.group(2);
 
 						Property property = Property.find.where()
-								.eq("key", key).findUnique();
+								.eq("akey", key).findUnique();
 						if (property == null) {
 							property = new Property();
-							property.key = key;
+							property.akey = key;
 							property.save();
 						}
 						Value value = property.values.get(i);
@@ -258,7 +258,7 @@ public class Properties extends Controller {
 		}
 
 		// Get the properties
-		List<Property> list = Property.find.orderBy("key").findList();
+		List<Property> list = Property.find.orderBy("akey").findList();
 
 		response().setContentType("application/x-download");
 		if (format.equalsIgnoreCase("strings")) {
