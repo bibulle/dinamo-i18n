@@ -1,0 +1,6 @@
+@(language: String, lang_index: Integer, properties: List[Property])
+// Generated the @{new Date().format("yyyy")}
+
+@for(property <- properties) {
+"@property.key" = "@property.values.get(lang_index).value";
+}

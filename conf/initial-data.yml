@@ -1,0 +1,28 @@
+properties:
+  - !!models.Property
+    key:     key1
+    values:
+      - value: first text
+      - value: un autre texte
+  - !!models.Property
+    key:     key2
+    values:
+      - value: an idea
+  - !!models.Property
+    key:     key3.key1.toto_azaz
+    values:
+      - value: another idea
+  - !!models.Property
+    key:     key4
+    values:
+      - value: What ?
+  - !!models.Property
+    key:     key5
+    values:
+      - value: Can't remenber
+  - !!models.Property
+    key:     another.key
+    values:
+      - value: 
+      - value: pas d'idée bizarre
+    

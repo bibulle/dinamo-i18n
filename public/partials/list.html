@@ -1,0 +1,72 @@
+<div id="properties">
+  <div class="row list header">
+		<div class="key span span{{12 - conf.nb_langage_by_row * Math.floor(11/conf.nb_langage_by_row)}}"
+				ng-click="setOrder('key')">
+		  <div class="span-inner">
+			  <div ng-show="(order == 'key')" class="sort">
+				  <i ng-show="!reverse" class="icon-chevron-down"></i>
+					<i ng-show="reverse" class="icon-chevron-up"></i>
+				</div>
+			  <span>Key</span>&nbsp;
+		  </div>
+		</div>
+		<div class="span span{{conf.nb_langage_by_row * Math.floor(11/conf.nb_langage_by_row)}}">
+		  <div class="row">
+				<div ng-repeat="langage in conf.langages">
+					<div class="span span{{Math.floor(12/conf.nb_langage_by_row)}} flag_{{conf.locals[$index] | lowercase}}"
+						ng-click="setOrder('values['+$index+'].value')">
+						<div class="span-inner">
+							<div ng-show="order == 'values['+$index+'].value'" class="sort">
+								<i ng-show="!reverse" class="icon-chevron-down"></i>
+								<i ng-show="reverse" class="icon-chevron-up"></i>
+							</div>{{langage}}&nbsp;
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+  </div>
+ 	<div ng-repeat="prop in properties  | filter:search | orderBy:order:reverse" class="row list" property-change="prop">
+		<div class="key span span{{12 - conf.nb_langage_by_row * Math.floor(11/conf.nb_langage_by_row)}}"
+				 ng-class="{editing: prop == editedValue}" ng-click="editProp(prop)">
+		  <div class="span-inner">
+		  		<i class="icon-trash trash" ng-click="deleteProp(prop, $event)"></i> 
+					<span class="view" ng-class="{strong: isNewer(prop.updateDate)}">{{prop.key}}&nbsp;</span>
+					<form ng-submit="doneEditing(prop)">
+						<textarea rows=4 class="edit" ng-model="prop.key" value-blur="doneEditing(prop)" value-focus="prop == editedValue"/></textarea>
+					</form>
+		  </div>
+		</div>
+		<div class="span span{{conf.nb_langage_by_row * Math.floor(11/conf.nb_langage_by_row)}}">
+		  <div class="row">
+				<div ng-repeat="value in prop.values">
+		  		<div ng-show="($index % conf.nb_langage_by_row) == 0" style="width:100%" class="separator"></div>
+						<div class="span span{{Math.floor(12/conf.nb_langage_by_row)}} flag_{{conf.locals[$index] | lowercase}}" ng-class="{editing: value == editedValue}" ng-click="editValue(value)">
+							<div class="span-inner">
+      					<span class="view" ng-class="{strong: isNewer(value.updateDate), temporary: value.temporary}">{{value.value}}&nbsp;</span>
+								<form ng-submit="doneEditing(prop, value)">
+									<textarea rows=4 class="edit" ng-model="value.value" value-blur="doneEditing(prop, value)" value-focus="value == editedValue"></textarea>
+								</form>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div id="deleteValidationModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+	<div class="modal-header">
+ 		<button type="button" class="close" data-dismiss="modal" aria-hidden="true" ng-click="deletedProperty = null">×</button>
+ 		<h3 id="deleteValidationLabel">Delete this property ?</h3>
+	</div>
+	<div class="modal-body">
+ 		<p>{{deletedProperty.key}}</p>
+	</div>
+	<div class="modal-footer">
+ 		<button class="btn" data-dismiss="modal" aria-hidden="true" ng-click="deletedProperty = null">Cancel</button>
+ 		<button class="btn btn-primary" ng-click="reallyDeletedProperty(deletedProperty)">Yes</button>
+	</div>
+</div>
+

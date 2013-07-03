@@ -1,0 +1,19 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# ~~~~
+
+# Home page
+GET     /                           controllers.Application.index()
+
+# Rest properties
+GET     /property                   controllers.Properties.list
+GET     /property/{id}              controllers.Properties.get(id: Long)
+POST    /property                   controllers.Properties.create()
+DELETE  /property/:id               controllers.Properties.delete(id: Long)
+
+# Upload properties
+POST     /upload                   	controllers.Properties.uploadFiles
+GET			 /download/:lang/:format		controllers.Properties.downloadFiles(lang, format)
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file               controllers.Assets.at(path="/public", file)
