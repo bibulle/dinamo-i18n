@@ -3,6 +3,7 @@ package controllers;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -241,12 +242,31 @@ public class Properties extends Controller {
 		return ok();
 	}
 
+
+	
 	/**
 	 * Download a file
 	 * 
 	 * @return
 	 */
-	public static Result downloadFiles(String language, String format) {
+	public static Result downloadValidatedFiles(String language, String format) {
+		return downloadFiles(language, format, false);
+	}
+
+	/**
+	 * Download a file
+	 * 
+	 * @return
+	 */
+	public static Result downloadAllFiles(String language, String format) {
+			return downloadFiles(language, format, true);
+	}
+	/**
+	 * Download a file
+	 * 
+	 * @return
+	 */
+	private static Result downloadFiles(String language, String format, boolean withTemporary) {
 		int lang_index = -1;
 		for (int i = 0; i < locals.length; i++) {
 			if (locals[i].equalsIgnoreCase(language)) {
@@ -259,6 +279,15 @@ public class Properties extends Controller {
 
 		// Get the properties
 		List<Property> list = Property.find.orderBy("akey").findList();
+		
+		
+		if (!withTemporary) {
+			for (Property property : list) {
+				if (property.values.get(lang_index).temporary) {
+					property.values.get(lang_index).value="";
+				}
+			}
+		}
 
 		response().setContentType("application/x-download");
 		if (format.equalsIgnoreCase("strings")) {
