@@ -38,6 +38,9 @@ public class Global extends GlobalSettings {
 	@Override
 	public void onStart(Application app) {
 
+		// Change system tmdir to allow working in CloudFoundry
+		System.setProperty("java.io.tmpdir", System.getProperty("user.dir"));
+		
 		// Loading default data
 		// if (Property.find.findRowCount() == 0) {
 		// @SuppressWarnings("unchecked")
