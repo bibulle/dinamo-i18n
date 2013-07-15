@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,12 +24,14 @@ import org.codehaus.jackson.node.ObjectNode;
 import org.codehaus.jackson.node.POJONode;
 
 import play.libs.F.*;
+import play.libs.Akka;
 import play.libs.Json;
 import play.mvc.Controller;
 import play.mvc.Http.MultipartFormData;
 import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Result;
 import play.mvc.WebSocket;
+import scala.concurrent.duration.Duration;
 import views.html.properties;
 import views.html.xml;
 
@@ -226,6 +229,10 @@ public class Properties extends Controller {
 						Value value = property.values.get(i);
 						value.value = valueS;
 						property.update();
+						try {
+							Thread.sleep(1);
+						} catch (InterruptedException e) {
+						}
 					}
 				}
 				fileScanner.close();
@@ -323,12 +330,13 @@ public class Properties extends Controller {
 							try {
 								// System.out.println("let's go");
 								long lastUpdateDate = (event.get("lastUpdateDate") == null ? 0 : event.get("lastUpdateDate").asLong(0));
+								long lastUpdateId = (event.get("lastUpdateId") == null ? 0 : event.get("lastUpdateId").asLong(0));
 								int count = (event.get("count") == null ? 10 : event.get("count").asInt(10));
 								// System.out.println(lastUpdateDate);
 								// System.out.println(count);
 								// Send all
 								// System.out.println("============Debut");
-								List<Property> properties = Property.findOrderByUpdateDate(lastUpdateDate, count);
+								List<Property> properties = Property.findOrderByUpdateDate(lastUpdateDate, lastUpdateId, count);
 								for (Property property : properties) {
 									sendNews("save", property);
 								}
@@ -355,18 +363,19 @@ public class Properties extends Controller {
 	}
 
 	public static void sendNews(String action, Property property) {
-		// try {
-		ObjectNode event = Json.newObject();
+		final ObjectNode event = Json.newObject();
 		event.put("action", action);
 		// event.put("property", objectWriter.writeValueAsString(property));
 		event.put("property", Json.toJson(property));
 
-		for (WebSocket.Out<JsonNode> out : webSocketOuts.values()) {
-			out.write(event);
-		}
-		// } catch (IOException e) {
-		// e.printStackTrace();
-		// }
+		Akka.system().scheduler().scheduleOnce(Duration.Zero(), new Runnable() {
+			@Override
+			public void run() {
+				for (WebSocket.Out<JsonNode> out : webSocketOuts.values()) {
+					out.write(event);
+				}
+			}
+		}, Akka.system().dispatcher());
 	}
 
 }

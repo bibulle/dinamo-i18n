@@ -165,12 +165,11 @@ angular
 			    		if ($rootScope.refreshNeeded) {
 				    		msg = {
 				    				action: "refresh",
-	                  lastUpdateDate: $rootScope.lasUpdateDate
+	                  lastUpdateDate: $rootScope.lasUpdateDate,
+	                  lastUpdateId: $rootScope.lasUpdateId,
+	                  count: 30
 	              };
 				    		ws.send(JSON.stringify(msg));
-				    		$timeout(function() {
-				    			$rootScope.$broadcast('properties_refresh_needed');
-								}, 1000, true);
 				    		
 			    		}
 			    	});
@@ -225,7 +224,7 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 				newProp.values[i].value="";
 			}
 			$scope.properties.push(newProp);
-			return;
+			return newProp;
 		}
 		
 		// add or update a property
@@ -240,20 +239,43 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 		} else {
 			$scope.properties.push(property);
 			$scope.properties_table_id[property.id] = property;
+			oldProperty = property;
 		}
 
 		if (property.updateDate > $rootScope.lasUpdateDate) {
 			$rootScope.lasUpdateDate = property.updateDate;
+			$rootScope.lasUpdateId   = property.id;
+		} else if ((property.updateDate == $rootScope.lasUpdateDate) && 
+						   ($rootScope.lasUpdateId < property.id)) {
+			$rootScope.lasUpdateId   = property.id;
 		}
 
+		return oldProperty;
 	}
 	
 	
 	$scope.$on('properties_save', function(event, property) {
-		$scope.updateProperties(property);
-		if (!$scope.$$phase) {
-			$scope.$digest();
+		$timeout.cancel($rootScope.loadingTimout);
+		if (!$rootScope.loading) {
+			$rootScope.loading = true;
+			if (!$rootScope.$$phase) {
+				$rootScope.$digest();
+			}
 		}
+		$rootScope.loadingTimout = $timeout(function() {
+			$rootScope.loading = false;
+			if (!$rootScope.$$phase) {
+				$rootScope.$digest();
+			}
+			if ($rootScope.refreshNeeded) {
+				$timeout(function() {
+					$rootScope.$broadcast('properties_refresh_needed');
+				}, 0, true);
+			}
+		}, 10, true);
+		$scope.updateProperties(property);
+		
+
 	});
 	$scope.$on('properties_delete', function(event, property) {
 		var found = false;
@@ -273,7 +295,7 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 	});
 	
 	$scope.$on ('addProperty', function(event) {
-		$scope.updateProperties(null);
+		newProp = $scope.updateProperties(null);
 		$scope.editedValue = newProp;
 	});
 
@@ -319,8 +341,10 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 			$scope.setMessageSuccess("Saved (" + property.akey + ")");
 			property.id = newProperty.id;
 			property.akey = newProperty.akey;
+			property.recent = newProperty.recent;
 			property.updateDate = newProperty.updateDate;
 			property.values = newProperty.values;
+			$scope.properties_table_id[property.id] = property;
 		}, function() {
 			$scope.setMessageError("cannot saved (" + property.akey + ")");
 		});

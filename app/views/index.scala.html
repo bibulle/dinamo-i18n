@@ -83,6 +83,10 @@
   		<!-- <button type="button" class="close" data-dismiss="alert">&times;</button> -->
   		<span ng-bind-html="message.text"></span>&nbsp;
 		</div>
+		<div message class="alert alert-{{message.type}} fade" ng-class="{fade: !loading, in: loading}">
+  		<!-- <button type="button" class="close" data-dismiss="alert">&times;</button> -->
+  		<span>LOADING...</span>&nbsp;
+		</div>
  	  <div class="hero-unit">
       <H1>@play.api.Play.current.configuration.getString("app.name")<version>@play.api.Play.current.configuration.getString("app.version")</version></H1>
       <p>Dinamo internationalization tools</p>

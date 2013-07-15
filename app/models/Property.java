@@ -12,6 +12,9 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.OrderBy;
 
+import com.avaje.ebean.Expr;
+import com.avaje.ebean.Expression;
+
 import controllers.Properties;
 
 import play.Logger;
@@ -47,7 +50,7 @@ public class Property extends Model {
 
 	@Override
 	public void save() {
-		//System.err.println("Save " + this);
+		// System.err.println("Save " + this);
 
 		if (values.size() > NB_LANGAGE) {
 			values = values.subList(0, NB_LANGAGE);
@@ -72,32 +75,33 @@ public class Property extends Model {
 
 	@Override
 	public void update() {
-		if (this.akey.startsWith("A3")) System.err.println("Update " + this);
+
 		boolean isChanged = ((_ebean_intercept().getChangedProps() != null) && (_ebean_intercept().getChangedProps().size() != 0));
-		if (this.akey.startsWith("A3"))  Logger.info("update "+isChanged+" "+_ebean_intercept().getChangedProps());
 
 		for (Value value : values) {
 			boolean vIsChanged = ((value._ebean_intercept().getChangedProps() != null) && (value._ebean_intercept().getChangedProps().size() != 0));
 			isChanged = isChanged || vIsChanged;
-			if (this.akey.startsWith("A3"))  Logger.info("update "+isChanged+" "+value._ebean_intercept().getChangedProps());
 			if (vIsChanged) {
 				value.updateDate = new Date();
 			}
 		}
 
 		if (isChanged) {
-			if (this.akey.startsWith("A3")) Logger.info("++++++++++++update++++++++++");
 			updateDate = new Date();
 			super.update();
 		}
 
+		boolean oldRecent = recent;
 		calcRecent();
-		Properties.sendNews("save", this);
+		if ((oldRecent != recent) || (isChanged)) {
+			Properties.sendNews("save", this);
+		}
+
 	}
 
 	@Override
 	public void delete() {
-		//System.err.println("Delete " + this);
+		// System.err.println("Delete " + this);
 		super.delete();
 
 		Properties.sendNews("delete", this);
@@ -161,8 +165,9 @@ public class Property extends Model {
 		return properties;
 	}
 
-	public static List<Property> findOrderByUpdateDate(long lastUpdateDate, int count) {
-		List<Property> properties = Property.find.where().gt("updateDate", new Date(lastUpdateDate)).orderBy("updateDate").setMaxRows(count).findList();
+	public static List<Property> findOrderByUpdateDate(long lastUpdateDate, long lastUpdateId, int count) {
+		List<Property> properties = Property.find.where().or(Expr.gt("updateDate", new Date(lastUpdateDate)), Expr.and(Expr.eq("updateDate", new Date(lastUpdateDate)), Expr.gt("id", lastUpdateId))).orderBy("updateDate, id").setMaxRows(count).findList();
+		//List<Property> properties = Property.find.where().gt("updateDate", new Date(lastUpdateDate)).orderBy("updateDate, id").setMaxRows(count).findList();
 		for (Property property : properties) {
 			property.calcRecent();
 		}

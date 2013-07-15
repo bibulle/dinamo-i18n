@@ -26,7 +26,7 @@ public class Value extends Model {
 
 	public int orderKey;
 	
-	public String value;
+	public String value = "";
 	
 	public Date updateDate = new Date();
 	

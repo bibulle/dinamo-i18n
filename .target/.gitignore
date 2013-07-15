@@ -1,7 +1,9 @@
-/Global$1.class
-/Global$2.class
-/Global.class
 /controllers
 /models
 /views
+/Global$1.class
+/Global$2.class
+/Global.class
 /SimpleTest.class
+/GetDropBoxKey.class
+/dropbox
