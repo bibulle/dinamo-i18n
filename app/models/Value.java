@@ -38,6 +38,8 @@ public class Value extends Model {
 	@JsonIgnore
 	public Property property;
 
+	public transient boolean recent = false;
+
 	@Override
 	public void save() {
 		// TODO Auto-generated method stub
@@ -45,6 +47,15 @@ public class Value extends Model {
 		super.save();
 	}
 	
+	/**
+	 * Calc recent 
+	 */
+	void calcRecent() {
+		recent = ((System.currentTimeMillis() - updateDate.getTime()) < Property.RECENT_DELTA_MILLI);
+		//System.out.println(recent+" "+System.currentTimeMillis()+" "+updateDate.getTime()+" "+(System.currentTimeMillis() - updateDate.getTime()));
+		
+	}
+
 	/**
 	 * finder
 	 */

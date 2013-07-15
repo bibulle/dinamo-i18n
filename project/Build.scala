@@ -15,7 +15,8 @@ object ApplicationBuild extends Build {
 			javaJdbc, 
 			javaEbean, 
 			anorm ,
-  		"com.memetix" % "microsoft-translator-java-api" % "0.6.2"
+  		"com.memetix" % "microsoft-translator-java-api" % "0.6.2",
+  		"com.dropbox.core" % "dropbox-core-sdk" % "[1.6,1.7)"
     )
 
 	val main = play.Project(appName, appVersion, appDependencies).settings(

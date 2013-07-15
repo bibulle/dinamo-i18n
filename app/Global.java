@@ -1,4 +1,5 @@
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -24,6 +25,10 @@ import play.mvc.Http.Request;
 import scala.concurrent.duration.Duration;
 
 import com.avaje.ebean.Expr;
+import com.dropbox.core.DbxClient;
+import com.dropbox.core.DbxException;
+import com.dropbox.core.DbxRequestConfig;
+import com.dropbox.core.DbxWriteMode;
 import com.memetix.mst.language.Language;
 import com.memetix.mst.translate.Translate;
 
@@ -40,7 +45,7 @@ public class Global extends GlobalSettings {
 
 		// Change system tmdir to allow working in CloudFoundry
 		System.setProperty("java.io.tmpdir", System.getProperty("user.dir"));
-		
+
 		// Loading default data
 		// if (Property.find.findRowCount() == 0) {
 		// @SuppressWarnings("unchecked")
@@ -55,86 +60,95 @@ public class Global extends GlobalSettings {
 		// }
 
 		// time to save ?
-		Akka.system()
-				.scheduler()
-				.schedule(Duration.Zero(), Duration.create(1, TimeUnit.MINUTES),
-						new Runnable() {
-							public void run() {
-								String workingHost = null;
+		Akka.system().scheduler().schedule(Duration.Zero(), Duration.create(1, TimeUnit.MINUTES), new Runnable() {
+			public void run() {
+				String workingHost = null;
 
-								Calendar now = Calendar.getInstance();
-								Calendar yesterday = Calendar.getInstance();
-								yesterday.add(Calendar.DAY_OF_MONTH, -1);
-								yesterday.set(Calendar.HOUR, 0);
-								yesterday.set(Calendar.MINUTE, 0);
-								yesterday.set(Calendar.SECOND, 0);
-								yesterday.set(Calendar.MILLISECOND, 0);
+				// Logger.debug("Time to save ?");
+				Calendar yesterday = Calendar.getInstance();
+				yesterday.add(Calendar.DAY_OF_MONTH, -1);
+				yesterday.set(Calendar.HOUR, 0);
+				yesterday.set(Calendar.MINUTE, 0);
+				yesterday.set(Calendar.SECOND, 0);
+				yesterday.set(Calendar.MILLISECOND, 0);
 
-								if (Property.find.where().gt("updateDate", yesterday.getTime())
-										.findRowCount() != 0) {
+				if (Property.findCountNewer(yesterday) != 0) {
 
-									SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM_dd");
-									String repName = "sav" + File.separator
-											+ sdf.format(new Date());
+					SimpleDateFormat sdf = new SimpleDateFormat("yyyy_MM_dd");
+					String repName = "sav" + File.separator + sdf.format(new Date());
 
-									File rep = new File(repName);
+					File rep = new File(repName);
+					if (!rep.exists()) {
+
+						// Foreach host
+						for (String host : hosts) {
+
+							// Foreach langs
+							for (String local : Properties.locals) {
+								OutputStream os = null;
+								try {
+									InputStream is = WS.url("http://" + host + "/downvalid/" + local + "/strings").get().get().getBodyAsStream();
+
+									// if connection ok, create save directory
 									if (!rep.exists()) {
+										rep.mkdirs();
+										Logger.info("Create " + repName);
+									}
+									workingHost = host;
 
-										// Foreach host
-										for (String host : hosts) {
+									// Save on the filesystem
+									File savedFile = new File(rep, "Localizable.strings_" + local + ".properties");
+									os = new FileOutputStream(savedFile);
 
-											// Foreach langs
-											for (String local : Properties.locals) {
-												OutputStream os = null;
-												try {
-													InputStream is = WS
-															.url(
-																	"http://" + host + "/downvalid/" + local
-																			+ "/strings").get().get()
-															.getBodyAsStream();
+									int read = 0;
+									byte[] bytes = new byte[1024];
 
-													// if connection ok, create save directory
-													if (!rep.exists()) {
-														rep.mkdirs();
-														Logger.info("Create " + repName);
-													}
-													workingHost = host;
+									while ((read = is.read(bytes)) != -1) {
+										os.write(bytes, 0, read);
+									}
 
-													os = new FileOutputStream(new File(rep,
-															"Localizable.strings_" + local + ".properties"));
+									os.close();
+									os = null;
 
-													int read = 0;
-													byte[] bytes = new byte[1024];
+									Boolean saveToDropbox = Configuration.root().getBoolean("save.to.dropbox");
+									if ((saveToDropbox != null) && saveToDropbox) {
 
-													while ((read = is.read(bytes)) != -1) {
-														os.write(bytes, 0, read);
-													}
-												} catch (IOException e) {
-													Logger.error("Error during save : " + e.getMessage());
-													break;
-												} finally {
-													if (os != null) {
-														try {
-															os.close();
-														} catch (IOException e) {
-															e.printStackTrace();
-														}
-													}
-												}
-											}
-										}
-										if (workingHost != null) {
-											hosts = new ArrayList<String>();
-											hosts.add(workingHost);
+										// Send Saved to DropBox
+										String ACCESS_KEY = "zxIZV8a-7wgAAAAAAAAAAfG-t8YrCK1qe5VQRlI8HyXgR-k1-qwEJUCl2N-5fkqm";
+										DbxClient dbxClient = new DbxClient(new DbxRequestConfig("dinamo-i18n", "fr_FR"), ACCESS_KEY);
+
+										String savedPath = (File.separator + savedFile.getPath()).replace(File.separator, "/").replace("/sav/", "/");
+										dbxClient.uploadFile(savedPath, DbxWriteMode.force(), savedFile.length(), new FileInputStream(savedFile));
+									}
+
+								} catch (IOException e) {
+									Logger.error("Error during save : " + e.getMessage());
+									break;
+								} catch (DbxException e) {
+									Logger.error("Error during save : " + e.getMessage());
+									break;
+								} finally {
+									if (os != null) {
+										try {
+											os.close();
+										} catch (IOException e) {
+											e.printStackTrace();
 										}
 									}
 								}
 							}
-						}, Akka.system().dispatcher());
+						}
+						if (workingHost != null) {
+							hosts = new ArrayList<String>();
+							hosts.add(workingHost);
+						}
+					}
+				}
+			}
+		}, Akka.system().dispatcher());
 
 		// translate automaticaly...
-		Boolean launchTranslation = Configuration.root().getBoolean(
-				"translation.automatic");
+		Boolean launchTranslation = Configuration.root().getBoolean("translation.automatic");
 		if ((launchTranslation != null) && launchTranslation) {
 			launchTranslation();
 		}
@@ -142,68 +156,61 @@ public class Global extends GlobalSettings {
 	}
 
 	public void launchTranslation() {
-		Akka.system().scheduler()
-				.scheduleOnce(Duration.create(10, TimeUnit.SECONDS), new Runnable() {
-					public void run() {
-						// Logger.info("Launched " + new Date());
-						List<Value> values = Value.find.where()
-								.or(Expr.isNull("value"), Expr.eq("value", "")).findList();
-						if (!values.isEmpty()) {
-							// Logger.info("values.size() " +
-							// values.size());
-							Value value = values.get((int) (Math.random() * values.size()));
-							// Logger.info("value.id " + value.id + " "
-							// + value.property);
+		Akka.system().scheduler().scheduleOnce(Duration.create(10, TimeUnit.SECONDS), new Runnable() {
+			public void run() {
+				// Logger.info("Launched " + new Date());
+				List<Value> values = Value.find.where().or(Expr.isNull("value"), Expr.eq("value", "")).findList();
+				if (!values.isEmpty()) {
+					// Logger.info("values.size() " +
+					// values.size());
+					Value value = values.get((int) (Math.random() * values.size()));
+					// Logger.info("value.id " + value.id + " "
+					// + value.property);
 
-							Property property = value.property;
-							String srcText = "";
-							String srcLang = null;
-							String trgLang = null;
+					Property property = value.property;
+					String srcText = "";
+					String srcLang = null;
+					String trgLang = null;
 
-							for (int i = 0; i < property.values.size(); i++) {
-								if ((srcLang == null) && (property.values.get(i).value != null)
-										&& (!property.values.get(i).value.trim().isEmpty())) {
-									srcLang = Properties.locals[i];
-									srcText = property.values.get(i).value;
-								}
-								if (property.values.get(i).equals(value)) {
-									trgLang = Properties.locals[i];
-								}
-							}
-
-							if ((srcLang != null) && (trgLang != null)) {
-								if (trgLang.equals("zh")) {
-									trgLang = "zh-CHS";
-								}
-								try {
-									Translate.setClientId("dinamo");
-									Translate
-											.setClientSecret("bAMtLtju1FwWdg3RUa4Q/1n8ZjCQM6RkgrnumssADF4=");
-
-									String translatedText = Translate.execute(srcText,
-											Language.fromString(srcLang),
-											Language.fromString(trgLang));
-									Logger.info(srcText + " (" + srcLang + ") -> '"
-											+ translatedText + "'(" + trgLang + ")");
-
-									value.value = translatedText;
-									value.temporary = true;
-									property.update();
-								} catch (Exception e) {
-									e.printStackTrace();
-								}
-							}
+					for (int i = 0; i < property.values.size(); i++) {
+						if ((srcLang == null) && (property.values.get(i).value != null) && (!property.values.get(i).value.trim().isEmpty())) {
+							srcLang = Properties.locals[i];
+							srcText = property.values.get(i).value;
 						}
-
-						launchTranslation();
+						if (property.values.get(i).equals(value)) {
+							trgLang = Properties.locals[i];
+						}
 					}
-				}, Akka.system().dispatcher());
+
+					if ((srcLang != null) && (trgLang != null)) {
+						if (trgLang.equals("zh")) {
+							trgLang = "zh-CHS";
+						}
+						try {
+							Translate.setClientId("dinamo");
+							Translate.setClientSecret("bAMtLtju1FwWdg3RUa4Q/1n8ZjCQM6RkgrnumssADF4=");
+
+							String translatedText = Translate.execute(srcText, Language.fromString(srcLang), Language.fromString(trgLang));
+							Logger.info(srcText + " (" + srcLang + ") -> '" + translatedText + "'(" + trgLang + ")");
+
+							value.value = translatedText;
+							value.temporary = true;
+							property.update();
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+					}
+				}
+
+				launchTranslation();
+			}
+		}, Akka.system().dispatcher());
 
 	}
 
 	// Intercept the request (to get the host)
 	@Override
-	public Action onRequest(Request request, Method actionMethod) {
+	public Action<?> onRequest(Request request, Method actionMethod) {
 
 		String host = request.host();
 		if (!hosts.contains(host)) {

@@ -31,7 +31,7 @@
 				 ng-class="{editing: prop == editedValue}" ng-click="editProp(prop)">
 		  <div class="span-inner">
 		  		<i class="icon-trash trash" ng-click="deleteProp(prop, $event)"></i> 
-					<span class="view" ng-class="{strong: isNewer(prop.updateDate)}">{{prop.akey}}&nbsp;</span>
+					<span class="view" ng-class="{strong: prop.recent}">{{prop.akey}}&nbsp;</span>
 					<form ng-submit="doneEditing(prop)">
 						<textarea rows=4 class="edit" ng-model="prop.akey" value-blur="doneEditing(prop)" value-focus="prop == editedValue"/></textarea>
 					</form>
@@ -43,7 +43,7 @@
 		  		<div ng-show="($index % conf.nb_langage_by_row) == 0" style="width:100%" class="separator"></div>
 						<div class="span span{{Math.floor(12/conf.nb_langage_by_row)}} flag_{{conf.locals[$index] | lowercase}}" ng-class="{editing: value == editedValue}" ng-click="editValue(value)">
 							<div class="span-inner">
-      					<span class="view" ng-class="{strong: isNewer(value.updateDate), temporary: value.temporary}">{{value.value}}&nbsp;</span>
+      					<span class="view" ng-class="{strong: value.recent, temporary: value.temporary}">{{value.value}}&nbsp;</span>
 								<form ng-submit="doneEditing(prop, value)">
 									<textarea rows=4 class="edit" ng-model="value.value" value-blur="doneEditing(prop, value)" value-focus="value == editedValue"></textarea>
 								</form>

@@ -87,7 +87,7 @@ angular
 				}
 			};
 		} ]).run(
-				function($rootScope, $location, $log) {
+				function($rootScope, $location, $log, $timeout) {
 					$rootScope.conf = {
 						nb_langage_by_row : 3,
 						langages : [ "English", "French", "Spanish", "German", "Japanese",
@@ -131,16 +131,51 @@ angular
 						angular.element('#ImportForm').modal('show');
 					}
 
-					$rootScope.isNewer = function(updateDate) {
-						// $log.info("---- "+updateDate+"<->"+(new
-						// Date()).getTime()+" "+(((new Date()).getTime() -
-						// updateDate) < 1000*10));
-						return ((new Date()).getTime() - updateDate) < 60000;
-					}
-					
 					$rootScope.addProperty = function() {
 						$rootScope.$broadcast('addProperty');
 					}
+					
+					// Manage the WebSocket
+					$rootScope.connectWebSocket = function() {
+			    	var ws = new WebSocket("ws://"+$location.host()+":"+$location.port()+"/webSocket");
+			    	
+			    	ws.onopen = function() {
+			    		console.log("Socket has been opened");
+			    		$rootScope.refreshNeeded = true;
+			    		$rootScope.$broadcast('properties_refresh_needed');
+			    	}
+			    	ws.onclose = function() {
+			    		console.log("Socket has been closed");
+			    		$rootScope.setMessageError("Connection to server lost");
+			    		$timeout(function() {
+			    			$rootScope.connectWebSocket();
+							}, 5000, true);
+
+			    	}
+			    	ws.onmessage = function(message) {
+			    		var data = JSON.parse(message.data);
+			    		console.log("Socket message received");
+			    		if (data.action == 'noRefreshNeeded') {
+			    			$rootScope.refreshNeeded = false;
+			    		}
+			    		$rootScope.$broadcast('properties_'+data.action, data.property);
+			    	}
+			    	
+			    	$rootScope.$on('properties_refresh_needed', function(event) {
+			    		if ($rootScope.refreshNeeded) {
+				    		msg = {
+				    				action: "refresh",
+	                  lastUpdateDate: $rootScope.lasUpdateDate
+	              };
+				    		ws.send(JSON.stringify(msg));
+				    		$timeout(function() {
+				    			$rootScope.$broadcast('properties_refresh_needed');
+								}, 1000, true);
+				    		
+			    		}
+			    	});
+			    } 
+					$rootScope.connectWebSocket();
 
 				}).controller('FileUploadCtrl', [ '$scope', '$rootScope', 'uploadManager', FileUploadCtrl ]);
 
@@ -171,80 +206,17 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 
 	$rootScope.order = 'akey';
 	$rootScope.reverse = false;
+	$rootScope.lasUpdateDate = 0;
 
-	$scope.properties = [];
-	$scope
-			.$on(
-					'refreshProperties',
-					function(event) {
-						// cancel previous timeout
-						$timeout.cancel($scope.timeoutId);
-						// Next in 10 secondes
-						$scope.timeoutId = $timeout(function() {
-							$rootScope.$broadcast('refreshProperties');
-						}, 60000);
-						// Load
-						$timeout(
-								function() {
-									// $log.info('--' + new Date());
-									var newProperties = PropertyBackend
-											.query(function() {
-												// $log.info(new Date());
-												var cpt = 0;
-												var found = false;
-												for ( var newProp in newProperties) {
-													for ( var oldProp in $scope.properties) {
-														if (newProperties[newProp].id == $scope.properties[oldProp].id) {
-															$scope.properties[oldProp].akey = newProperties[newProp].akey;
-															$scope.properties[oldProp].updateDate = newProperties[newProp].updateDate;
-															$scope.properties[oldProp].values = newProperties[newProp].values;
-															cpt++;
-															found = true;
-															break;
-														}
-													}
-													if (!found) {
-														$scope.properties.push(newProperties[newProp]);
-														cpt++;
-													}
-													found = false;
-													// if ((cpt % 10 == 0) &&
-													// (!$scope.$$phase)) {
-													// $scope.$digest();
-													// }
-												}
-												for ( var oldProp in $scope.properties) {
-													found = false;
-													for ( var newProp in newProperties) {
-														if (newProperties[newProp].id == $scope.properties[oldProp].id) {
-															found = true;
-															break;
-														}
-													}
-													if (!found) {
-														if ($scope.editedValue != $scope.properties[oldProp]) {
-															$scope.properties.splice(oldProp, 1);
-															cpt++;
-														}
-													}
-													// if ((cpt % 10 == 0) &&
-													// (!$scope.$$phase)) {
-													// $scope.$digest();
-													// }
-												}
-												// $log.info(new Date());
-												// if (!$scope.$$phase) {
-												// $scope.$digest();
-												// }
-												// $log.info(new Date());
-											});
-									// $log.info('--' + new Date());
-								}, 0, false);
-					});
-
-	$rootScope.$broadcast('refreshProperties');
+	$scope.properties = []; // PropertyBackend.query();
+	$scope.properties_table_id = {};
+	$scope.properties_table_key = {};
 	
-	$scope.$on ('addProperty', function(event) {
+	// Centralized properties
+	$scope.updateProperties = function(property) {
+		
+		// Add a new empty property
+		if (property == null) {
 			var newProp = {};
 			newProp.akey = "";
 			newProp.values = [];
@@ -253,7 +225,56 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 				newProp.values[i].value="";
 			}
 			$scope.properties.push(newProp);
-			$scope.editedValue = newProp;
+			return;
+		}
+		
+		// add or update a property
+		oldProperty = $scope.properties_table_id[property.id];
+		
+		if (!angular.isUndefined(oldProperty)) {
+			oldProperty.id = property.id;
+			oldProperty.akey = property.akey;
+			oldProperty.updateDate = property.updateDate;
+			oldProperty.recent = property.recent;
+			oldProperty.values = property.values;
+		} else {
+			$scope.properties.push(property);
+			$scope.properties_table_id[property.id] = property;
+		}
+
+		if (property.updateDate > $rootScope.lasUpdateDate) {
+			$rootScope.lasUpdateDate = property.updateDate;
+		}
+
+	}
+	
+	
+	$scope.$on('properties_save', function(event, property) {
+		$scope.updateProperties(property);
+		if (!$scope.$$phase) {
+			$scope.$digest();
+		}
+	});
+	$scope.$on('properties_delete', function(event, property) {
+		var found = false;
+		for ( var oldProp in $scope.properties) {
+			if ($scope.properties[oldProp].id == property.id) {
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			$scope.properties.splice(oldProp, 1);
+			delete $scope.properties_table_id[property.id];
+		}
+		if (!$scope.$$phase) {
+			$scope.$digest();
+		}
+	});
+	
+	$scope.$on ('addProperty', function(event) {
+		$scope.updateProperties(null);
+		$scope.editedValue = newProp;
 	});
 
 	// $scope.$watch('properties', function (newValue, oldValue, scope) {
@@ -294,8 +315,12 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 		$scope.editedValue = null;
 		
 		// save
-		PropertyBackend.save(property, function() {
+		newProperty = PropertyBackend.save(property, function() {
 			$scope.setMessageSuccess("Saved (" + property.akey + ")");
+			property.id = newProperty.id;
+			property.akey = newProperty.akey;
+			property.updateDate = newProperty.updateDate;
+			property.values = newProperty.values;
 		}, function() {
 			$scope.setMessageError("cannot saved (" + property.akey + ")");
 		});
@@ -323,8 +348,8 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 		PropertyBackend.delete(property, function() {
 			$scope.deletedProperty = null;
 			
-			var index = $scope.properties.indexOf(property);
-			$scope.properties.splice(index, 1);
+			// var index = $scope.properties.indexOf(property);
+			// $scope.properties.splice(index, 1);
 			
 			$scope.setMessageSuccess("Deleted (" + property.akey + ")");
 		}, function() {
@@ -335,10 +360,10 @@ function ListCtrl($scope, PropertyBackend, $rootScope, $timeout, $log) {
 
 	$scope.$watch('deletedProperty', function(newVal, oldVal) {
 		if (angular.isDefined(newVal) && (newVal != null)) {
-			//$log.info("deleteProp show");
+			// $log.info("deleteProp show");
 			$('#deleteValidationModal').modal('show');
 		} else {
-			//$log.info("deleteProp hide");
+			// $log.info("deleteProp hide");
 			$('#deleteValidationModal').modal('hide');
 		}
 	});

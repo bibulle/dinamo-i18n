@@ -2,5 +2,5 @@
 // Generated the @{new Date().format("yyyy")}
 
 @for(property <- properties) {
-"@property.akey" = "@property.values.get(lang_index).value";
+"@Html(property.akey)" = "@Html(property.values.get(lang_index).value)";
 }

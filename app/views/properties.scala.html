@@ -1,5 +1,5 @@
 @(language: String, lang_index: Integer, properties: List[Property])// Dinamo i18n file : @language
 // Generated on the @{new Date().format("dd/MM/yyyy hh:mm:ss")}
 
-@for(property <- properties) {"@property.akey" = "@property.values.get(lang_index).value";
+@for(property <- properties) {"@Html(property.akey)" = "@Html(property.values.get(lang_index).value)";
 }

@@ -1,0 +1,8 @@
+---
+applications:
+- name: dinamo-i18n
+  memory: 512M
+  instances: 1
+  host: dinamo-i18n
+  domain: cf.eden.klm.com
+  path: dist\dinamo-i18n-0.0.3.zip

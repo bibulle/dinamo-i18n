@@ -11,6 +11,8 @@ GET     /property/{id}              controllers.Properties.get(id: Long)
 POST    /property                   controllers.Properties.create()
 DELETE  /property/:id               controllers.Properties.delete(id: Long)
 
+GET			/webSocket									controllers.Properties.webSocket()
+
 # Upload properties
 POST     /upload                   	controllers.Properties.uploadFiles
 GET			 /download/:lang/:format		controllers.Properties.downloadAllFiles(lang, format)

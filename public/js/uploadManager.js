@@ -24,7 +24,7 @@ angular.module('uploadManager', []).
                 		$rootScope.appendMessageError(jqXHR.responseText);
                 	})
                 	.complete(function (result, textStatus, jqXHR) {
-                		$rootScope.$broadcast('refreshProperties');
+                		//$rootScope.$broadcast('refreshProperties');
                 	});
             });
             this.clear();

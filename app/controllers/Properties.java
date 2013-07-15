@@ -3,8 +3,9 @@ package controllers;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Iterator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -18,25 +19,28 @@ import org.codehaus.jackson.JsonParseException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.map.ObjectWriter;
+import org.codehaus.jackson.node.ObjectNode;
+import org.codehaus.jackson.node.POJONode;
 
+import play.libs.F.*;
+import play.libs.Json;
 import play.mvc.Controller;
 import play.mvc.Http.MultipartFormData;
 import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Result;
-import views.html.*;
+import play.mvc.WebSocket;
+import views.html.properties;
+import views.html.xml;
 
 public class Properties extends Controller {
 
 	// private static Gson gson = new
 	// GsonBuilder().excludeFieldsWithModifiers(Modifier.STATIC).excludeFieldsWithoutExposeAnnotation().setPrettyPrinting().create();
 
-	private static ObjectWriter objectWriter = (new ObjectMapper())
-			.writerWithDefaultPrettyPrinter();
+	private static ObjectWriter objectWriter = (new ObjectMapper()).writerWithDefaultPrettyPrinter();
 
-	public static String[] langs = { "English", "French", "Spanish", "German",
-			"Japanese", "Korean", "Portuguese", "Italian", "Chinese" };
-	public static String[] locals = { "en", "fr", "es", "de", "ja", "ko", "pt",
-			"it", "zh" };
+	public static String[] langs = { "English", "French", "Spanish", "German", "Japanese", "Korean", "Portuguese", "Italian", "Chinese" };
+	public static String[] locals = { "en", "fr", "es", "de", "ja", "ko", "pt", "it", "zh" };
 
 	/**
 	 * List all the properties
@@ -45,7 +49,7 @@ public class Properties extends Controller {
 	 */
 	public static Result list() {
 		// Get the properties
-		List<Property> list = Property.find.all();
+		List<Property> list = Property.findAllOrderByKey();
 
 		try {
 			return ok(objectWriter.writeValueAsString(list));
@@ -68,7 +72,7 @@ public class Properties extends Controller {
 	 * @return
 	 */
 	public static Result get(Long id) {
-		Property property = Property.find.byId(id);
+		Property property = Property.findById(id);
 		try {
 			return ok(objectWriter.writeValueAsString(property));
 
@@ -108,7 +112,7 @@ public class Properties extends Controller {
 			// Logger.info("create "+newProperty.id);
 
 			if ((newProperty.id != null) && (newProperty.id > 0)) {
-				Property oldProperty = Property.find.byId(newProperty.id);
+				Property oldProperty = Property.findById(newProperty.id);
 				oldProperty.akey = newProperty.akey;
 				oldProperty.updateDate = newProperty.updateDate;
 				for (int i = 0; i < newProperty.values.size(); i++) {
@@ -155,7 +159,7 @@ public class Properties extends Controller {
 	 */
 	public static Result delete(Long id) {
 		try {
-			Property dbProperty = Property.find.byId(id);
+			Property dbProperty = Property.findById(id);
 			dbProperty.delete();
 			return ok(objectWriter.writeValueAsString("success"));
 		} catch (JsonParseException e) {
@@ -183,28 +187,21 @@ public class Properties extends Controller {
 			for (FilePart file : files) {
 				// Check file name
 				if (!file.getFilename().endsWith(".properties")) {
-					System.err.println("File should be a '.properties' ("
-							+ file.getFilename() + ")");
-					return badRequest("File should be a '.properties' ("
-							+ file.getFilename() + ")");
+					System.err.println("File should be a '.properties' (" + file.getFilename() + ")");
+					return badRequest("File should be a '.properties' (" + file.getFilename() + ")");
 				}
 
 				// Check language
 				int i = 0;
 				for (String local : locals) {
-					if (file.getFilename()
-							.endsWith("_" + local + ".properties")) {
+					if (file.getFilename().endsWith("_" + local + ".properties")) {
 						break;
 					}
 					i++;
 				}
 				if (i >= locals.length) {
-					System.err.println("File should be in a known language ("
-							+ file.getFilename() + ", " + Arrays.asList(locals)
-							+ ")");
-					return badRequest("File should be in a known language ("
-							+ file.getFilename() + ", " + Arrays.asList(locals)
-							+ ")");
+					System.err.println("File should be in a known language (" + file.getFilename() + ", " + Arrays.asList(locals) + ")");
+					return badRequest("File should be in a known language (" + file.getFilename() + ", " + Arrays.asList(locals) + ")");
 				}
 
 				// Read file
@@ -220,8 +217,7 @@ public class Properties extends Controller {
 						String key = matcher.group(1);
 						String valueS = matcher.group(2);
 
-						Property property = Property.find.where()
-								.eq("akey", key).findUnique();
+						Property property = Property.findByKey(key);
 						if (property == null) {
 							property = new Property();
 							property.akey = key;
@@ -242,8 +238,6 @@ public class Properties extends Controller {
 		return ok();
 	}
 
-
-	
 	/**
 	 * Download a file
 	 * 
@@ -259,8 +253,9 @@ public class Properties extends Controller {
 	 * @return
 	 */
 	public static Result downloadAllFiles(String language, String format) {
-			return downloadFiles(language, format, true);
+		return downloadFiles(language, format, true);
 	}
+
 	/**
 	 * Download a file
 	 * 
@@ -278,30 +273,100 @@ public class Properties extends Controller {
 		}
 
 		// Get the properties
-		List<Property> list = Property.find.orderBy("akey").findList();
-		
-		
-		if (!withTemporary) {
-			for (Property property : list) {
-				if (property.values.get(lang_index).temporary) {
-					property.values.get(lang_index).value="";
+		List<Property> list = Property.findAllOrderByKey();
+
+		for (Property property : list) {
+			if (property.values.get(lang_index).value == null) {
+				property.values.get(lang_index).value = "";
+			} else {
+				if (!withTemporary) {
+					if (property.values.get(lang_index).temporary) {
+						property.values.get(lang_index).value = "";
+					}
 				}
 			}
 		}
 
 		response().setContentType("application/x-download");
 		if (format.equalsIgnoreCase("strings")) {
-			response().setHeader(
-					"Content-disposition",
-					"attachment; filename=localizable.strings_" + language
-							+ ".properties");
+			response().setHeader("Content-disposition", "attachment; filename=localizable.strings_" + language + ".properties");
 			return ok(properties.render(langs[lang_index], lang_index, list));
 		} else {
-			response().setHeader(
-					"Content-disposition",
-					"attachment; filename=localizable.strings_" + language
-							+ ".xml");
+			response().setHeader("Content-disposition", "attachment; filename=localizable.strings_" + language + ".xml");
 			return ok(xml.render(langs[lang_index], lang_index, list));
 		}
 	}
+
+	private static Map<WebSocket.In<JsonNode>, WebSocket.Out<JsonNode>> webSocketOuts = new HashMap<WebSocket.In<JsonNode>, WebSocket.Out<JsonNode>>();
+
+	public static WebSocket<JsonNode> webSocket() {
+		return new WebSocket<JsonNode>() {
+
+			@Override
+			public void onReady(final WebSocket.In<JsonNode> in, final WebSocket.Out<JsonNode> out) {
+
+				in.onClose(new Callback0() {
+					@Override
+					public void invoke() throws Throwable {
+						webSocketOuts.remove(in);
+					}
+				});
+
+				in.onMessage(new Callback<JsonNode>() {
+					@Override
+					public void invoke(JsonNode event) throws Throwable {
+						// System.out.println("############" + event);
+						String action = event.get("action").asText();
+						// System.out.println(action);
+
+						if (action.equalsIgnoreCase("refresh")) {
+							try {
+								// System.out.println("let's go");
+								long lastUpdateDate = (event.get("lastUpdateDate") == null ? 0 : event.get("lastUpdateDate").asLong(0));
+								int count = (event.get("count") == null ? 10 : event.get("count").asInt(10));
+								// System.out.println(lastUpdateDate);
+								// System.out.println(count);
+								// Send all
+								// System.out.println("============Debut");
+								List<Property> properties = Property.findOrderByUpdateDate(lastUpdateDate, count);
+								for (Property property : properties) {
+									sendNews("save", property);
+								}
+								if (properties.isEmpty()) {
+									ObjectNode noRefreshEvent = Json.newObject();
+									noRefreshEvent.put("action", "noRefreshNeeded");
+									out.write(noRefreshEvent);
+								}
+								// System.out.println("============Fin");
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+						}
+
+					}
+				});
+
+				webSocketOuts.put(in, out);
+
+			}
+
+		};
+
+	}
+
+	public static void sendNews(String action, Property property) {
+		// try {
+		ObjectNode event = Json.newObject();
+		event.put("action", action);
+		// event.put("property", objectWriter.writeValueAsString(property));
+		event.put("property", Json.toJson(property));
+
+		for (WebSocket.Out<JsonNode> out : webSocketOuts.values()) {
+			out.write(event);
+		}
+		// } catch (IOException e) {
+		// e.printStackTrace();
+		// }
+	}
+
 }
