@@ -5,4 +5,4 @@ applications:
   instances: 1
   host: dinamo-i18n
   domain: cf.eden.klm.com
-  path: dist\dinamo-i18n-0.0.3.zip
+  path: dist\dinamo-i18n-0.0.4.zip
