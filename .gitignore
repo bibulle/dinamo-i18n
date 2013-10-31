@@ -2,6 +2,7 @@ logs
 project/project
 project/target
 target
+.target
 tmp
 .history
 dist
@@ -15,3 +16,4 @@ dist
 /*.db
 /sav
 /bin
+*.class
